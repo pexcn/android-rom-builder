@@ -31,7 +31,7 @@ apply_patches() {
       echo "Failed to apply $patch_file"
       exit 1
     }
-    cd -
+    cd - >/dev/null
   done
   cd $SCRIPT_DIR
 }
