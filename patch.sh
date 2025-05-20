@@ -25,10 +25,10 @@ apply_patches() {
     local target_dir=$(readlink -f "$AOSP_DIR/$repo_path")
     local patch_file=$(readlink -f "$patch_dir/$patch_path")
 
-    echo "Applying $patch_file to $target_dir."
+    echo "Applying $patch_file to $target_dir"
     cd "$target_dir"
-    patch --no-backup-if-mismatch -p1 < "$patch_file" || {
-      echo "Failed to apply $patch_file."
+    patch --no-backup-if-mismatch --batch -p1 < "$patch_file" || {
+      echo "Failed to apply $patch_file"
       exit 1
     }
     cd -
