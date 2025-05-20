@@ -1,5 +1,9 @@
-#!/bin/sh
+#!/bin/bash
 
+# TODO: this script unfinished.
+exit 0
+
+# reset changes
 repo forall -c git reset --hard HEAD
 repo forall -c git clean -fdx
 
