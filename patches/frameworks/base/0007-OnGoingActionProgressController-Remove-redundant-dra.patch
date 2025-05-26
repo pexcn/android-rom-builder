@@ -1,0 +1,31 @@
+From 1034b01390a0c5203527002421eb8df228aad442 Mon Sep 17 00:00:00 2001
+From: NurKeinNeid <nurkeinneid@derpfest.org>
+Date: Mon, 3 Mar 2025 01:25:03 +0100
+Subject: [PATCH 07/24] OnGoingActionProgressController: Remove redundant
+ drawable setting in updateViews()
+
+As it's already set in updateIconImageView.
+
+Change-Id: Ia467e4ff8bb0ec8ec5251a080a7073e3d4798c2f
+Signed-off-by: NurKeinNeid <nurkeinneid@derpfest.org>
+---
+ .../systemui/statusbar/OnGoingActionProgressController.java    | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/OnGoingActionProgressController.java b/packages/SystemUI/src/com/android/systemui/statusbar/OnGoingActionProgressController.java
+index 0292d4d6f..04826f8bd 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/OnGoingActionProgressController.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/OnGoingActionProgressController.java
+@@ -214,9 +214,6 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+         Log.d(TAG, "updateViews: " + mCurrentProgress + "/" + mCurrentProgressMax);
+         mProgressBar.setMax(mCurrentProgressMax);
+         mProgressBar.setProgress(mCurrentProgress);
+-        if (mCurrentDrawable != null) {
+-            mIconView.setImageDrawable(mCurrentDrawable);
+-        }
+     }
+ 
+     /**
+-- 
+2.43.0
+

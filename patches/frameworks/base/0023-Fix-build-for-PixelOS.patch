@@ -1,0 +1,57 @@
+From a998dd26419a543efe61aac0f82b6329880b5d61 Mon Sep 17 00:00:00 2001
+From: pexcn <pexcn97@gmail.com>
+Date: Wed, 21 May 2025 07:44:30 +0000
+Subject: [PATCH] Fix build for PixelOS
+
+---
+ .../systemui/statusbar/OnGoingActionProgressController.java | 6 ------
+ 1 file changed, 6 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/OnGoingActionProgressController.java b/packages/SystemUI/src/com/android/systemui/statusbar/OnGoingActionProgressController.java
+index e138eb40d..d7c0087a1 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/OnGoingActionProgressController.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/OnGoingActionProgressController.java
+@@ -52,8 +52,6 @@ import com.android.systemui.statusbar.OnGoingActionProgressGroup;
+ import com.android.systemui.statusbar.policy.KeyguardStateController;
+ import com.android.systemui.statusbar.util.MediaSessionManagerHelper;
+ 
+-import com.android.internal.util.tenx.VibrationUtils;
+-
+ import java.util.HashMap;
+ import java.util.concurrent.Executor;
+ import java.util.concurrent.Executors;
+@@ -185,7 +183,6 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+             } else {
+                 openTrackedApp();
+             }
+-            VibrationUtils.triggerVibration(mContext, 3);
+         });
+         
+         mMediaSessionHelper.addMediaMetadataListener(mMediaMetadataListener);
+@@ -220,7 +217,6 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+             } else {
+                 openTrackedApp();
+             }
+-            VibrationUtils.triggerVibration(mContext, 3);
+             return true;
+         }
+ 
+@@ -229,7 +225,6 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+             if (mShowMediaProgress && mMediaSessionHelper.isMediaPlaying()) {
+                 toggleMediaPlaybackState();
+             }
+-            VibrationUtils.triggerVibration(mContext, 4);
+             return true;
+         }
+ 
+@@ -238,7 +233,6 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+             if (mShowMediaProgress && mMediaSessionHelper.isMediaPlaying()) {
+                 openMediaApp();
+             }
+-            VibrationUtils.triggerVibration(mContext, 5);
+         }
+ 
+         @Override
+-- 
+2.43.0
+

@@ -1,0 +1,848 @@
+From 9b41bcaf787cf9cf60a64ad40c5053d9ac648fa6 Mon Sep 17 00:00:00 2001
+From: Dmitrii <bankersenator@gmail.com>
+Date: Sat, 10 May 2025 08:39:48 +0000
+Subject: [PATCH] introduce compact progress indicator style [1/2]
+
+Signed-off-by: Dmitrii <bankersenator@gmail.com>
+---
+ core/java/android/provider/Settings.java      |   5 +
+ .../action_chip_compact_background.xml        |   5 +
+ .../drawable/circular_progress_drawable.xml   |  19 ++
+ packages/SystemUI/res/layout/status_bar.xml   |   3 +
+ ...status_bar_ongoing_action_chip_compact.xml |  53 ++++
+ packages/SystemUI/res/values/colors.xml       |   5 +
+ packages/SystemUI/res/values/dimens.xml       |   2 +
+ .../OnGoingActionProgressController.java      | 255 ++++++++++++------
+ .../statusbar/OnGoingActionProgressGroup.java |  13 +-
+ .../phone/PhoneStatusBarViewController.kt     |   6 +-
+ 10 files changed, 279 insertions(+), 87 deletions(-)
+ create mode 100644 packages/SystemUI/res/drawable/action_chip_compact_background.xml
+ create mode 100644 packages/SystemUI/res/drawable/circular_progress_drawable.xml
+ create mode 100644 packages/SystemUI/res/layout/status_bar_ongoing_action_chip_compact.xml
+
+diff --git a/core/java/android/provider/Settings.java b/core/java/android/provider/Settings.java
+index 1555b1af8..21b4926db 100644
+--- a/core/java/android/provider/Settings.java
++++ b/core/java/android/provider/Settings.java
+@@ -6893,6 +6893,11 @@ public final class Settings {
+             PRIVATE_SETTINGS.add(AUTO_BRIGHTNESS_ONE_SHOT);
+         }
+ 
++	/**
++         * @hide
++         */
++	private static final String COMPACT_MODE = "compact_mode";
++
+         /**
+          * @hide
+          */
+diff --git a/packages/SystemUI/res/drawable/action_chip_compact_background.xml b/packages/SystemUI/res/drawable/action_chip_compact_background.xml
+new file mode 100644
+index 000000000..48f0abe63
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/action_chip_compact_background.xml
+@@ -0,0 +1,5 @@
++<?xml version="1.0" encoding="utf-8"?>
++<shape xmlns:android="http://schemas.android.com/apk/res/android"
++    android:shape="oval">
++    <solid android:color="@color/action_chip_background_color" />
++</shape>
+diff --git a/packages/SystemUI/res/drawable/circular_progress_drawable.xml b/packages/SystemUI/res/drawable/circular_progress_drawable.xml
+new file mode 100644
+index 000000000..aaa99554c
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/circular_progress_drawable.xml
+@@ -0,0 +1,19 @@
++<?xml version="1.0" encoding="utf-8"?>
++<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
++    <item android:id="@android:id/background">
++        <shape
++            android:shape="ring"
++            android:thicknessRatio="12"
++            android:useLevel="false">
++            <solid android:color="@color/progress_background_color" />
++        </shape>
++    </item>
++    <item android:id="@android:id/progress">
++        <shape
++            android:shape="ring"
++            android:thicknessRatio="12"
++            android:useLevel="true">
++            <solid android:color="@color/progress_color" />
++        </shape>
++    </item>
++</layer-list>
+diff --git a/packages/SystemUI/res/layout/status_bar.xml b/packages/SystemUI/res/layout/status_bar.xml
+index 35ee837b9..101a7c578 100644
+--- a/packages/SystemUI/res/layout/status_bar.xml
++++ b/packages/SystemUI/res/layout/status_bar.xml
+@@ -113,6 +113,9 @@
+                     <include layout="@layout/status_bar_ongoing_action_chip"
+                         android:id="@+id/status_bar_ongoing_action_chip" />
+ 
++                    <include layout="@layout/status_bar_ongoing_action_chip_compact"
++                        android:id="@+id/ongoing_progress_chip_compact" />
++
+                     <com.android.systemui.statusbar.AlphaOptimizedFrameLayout
+                         android:id="@+id/notification_icon_area"
+                         android:layout_width="wrap_content"
+diff --git a/packages/SystemUI/res/layout/status_bar_ongoing_action_chip_compact.xml b/packages/SystemUI/res/layout/status_bar_ongoing_action_chip_compact.xml
+new file mode 100644
+index 000000000..06875f736
+--- /dev/null
++++ b/packages/SystemUI/res/layout/status_bar_ongoing_action_chip_compact.xml
+@@ -0,0 +1,53 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++     Copyright (C) 2025 The VoltageOS Project
++
++     Licensed under the Apache License, Version 2.0 (the "License");
++     you may not use this file except in compliance with the License.
++     You may obtain a copy of the License at
++
++          http://www.apache.org/licenses/LICENSE-2.0
++
++     Unless required by applicable law or agreed to in writing, software
++     distributed under the License is distributed on an "AS IS" BASIS,
++     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++     See the License for the specific language governing permissions and
++     limitations under the License.
++-->
++
++<FrameLayout
++    xmlns:android="http://schemas.android.com/apk/res/android"
++    android:id="@+id/ongoing_action_chip_compact"
++    android:layout_width="@dimen/ongoing_action_chip_compact_size"
++    android:layout_height="@dimen/ongoing_action_chip_compact_size"
++    android:layout_gravity="center_vertical|start"
++    android:layout_marginLeft="4dp"
++    android:visibility="gone"
++    android:background="@drawable/action_chip_compact_background"
++    android:clickable="true"
++    android:focusable="true">
++
++    <ProgressBar
++        android:id="@+id/circular_progress"
++        style="?android:attr/progressBarStyleHorizontal"
++        android:layout_width="match_parent"
++        android:layout_height="match_parent"
++        android:layout_gravity="center"
++        android:indeterminate="false"
++        android:progress="0"
++        android:max="100"
++        android:progressDrawable="@drawable/circular_progress_drawable"
++        android:clickable="false"
++        android:focusable="false" />
++
++    <ImageView
++        android:id="@+id/ongoing_action_app_icon_compact"
++        android:layout_width="@dimen/ongoing_action_icon_compact_size"
++        android:layout_height="@dimen/ongoing_action_icon_compact_size"
++        android:layout_gravity="center"
++        android:scaleType="centerInside"
++        android:contentDescription="App icon"
++        android:tint="@android:color/transparent"
++        android:src="@android:drawable/sym_def_app_icon" />
++
++</FrameLayout>
+diff --git a/packages/SystemUI/res/values/colors.xml b/packages/SystemUI/res/values/colors.xml
+index c2a33186f..19bf1e463 100644
+--- a/packages/SystemUI/res/values/colors.xml
++++ b/packages/SystemUI/res/values/colors.xml
+@@ -257,4 +257,9 @@
+     <!-- Rear Display Education -->
+     <color name="rear_display_overlay_animation_background_color">#1E1B17</color>
+     <color name="rear_display_overlay_dialog_background_color">#1E1B17</color>
++
++    <!-- Progress colors -->
++    <color name="progress_color">@*android:color/system_accent1_400</color>
++    <color name="progress_background_color">#33FFFFFF</color>
++    <color name="action_chip_background_color">#33000000</color>
+ </resources>
+diff --git a/packages/SystemUI/res/values/dimens.xml b/packages/SystemUI/res/values/dimens.xml
+index c9243b490..7f6fa0de0 100644
+--- a/packages/SystemUI/res/values/dimens.xml
++++ b/packages/SystemUI/res/values/dimens.xml
+@@ -2122,4 +2122,6 @@
+     <dimen name="ongoing_action_progress_height">10sp</dimen>
+     <dimen name="ongoing_action_padding">4sp</dimen>
+     <dimen name="ongoing_action_spacing">5dp</dimen>
++    <dimen name="ongoing_action_chip_compact_size">28dp</dimen>
++    <dimen name="ongoing_action_icon_compact_size">16dp</dimen>
+ </resources>
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/OnGoingActionProgressController.java b/packages/SystemUI/src/com/android/systemui/statusbar/OnGoingActionProgressController.java
+index 214ba7c73..51348d3f8 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/OnGoingActionProgressController.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/OnGoingActionProgressController.java
+@@ -58,12 +58,12 @@ import java.util.HashMap;
+ import java.util.concurrent.Executor;
+ import java.util.concurrent.Executors;
+ 
+-/** Controls the ongoing progress chip based on notifications @LineageExtension */
+ public class OnGoingActionProgressController implements NotificationListener.NotificationHandler, KeyguardStateController.Callback {
+     private static final String TAG = "OngoingActionProgressController";
+     private static final String ONGOING_ACTION_CHIP_ENABLED = "ongoing_action_chip";
+     private static final String SHOW_MEDIA_PROGRESS = "show_media_progress";
+     private static final String PROGRESS_BAR_OPACITY = "progress_bar_opacity";
++    private static final String COMPACT_MODE_ENABLED = "compact_progress_mode";
+     private static final int SWIPE_THRESHOLD = 100;
+     private static final int SWIPE_VELOCITY_THRESHOLD = 100;
+     private static final int DEFAULT_OPACITY = 255;
+@@ -82,16 +82,19 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+     private final Executor mBackgroundExecutor;
+ 
+     private final ProgressBar mProgressBar;
++    private final ProgressBar mCircularProgressBar;
+     private final View mProgressRootView;
++    private final View mCompactRootView;
+     private final ImageView mIconView;
++    private final ImageView mCompactIconView;
+ 
+-    // Cache for package icons to avoid repeated loading
+     private final HashMap<String, IconFetcher.AdaptiveDrawableResult> mIconCache = new HashMap<>();
+     
+     private boolean mShowMediaProgress = true;
+     private boolean mIsTrackingProgress = false;
+     private boolean mIsForceHidden = false;
+     private boolean mIsEnabled;
++    private boolean mIsCompactModeEnabled = false;
+     private int mCurrentProgress = 0;
+     private int mCurrentProgressMax = 0;
+     private int mProgressBarOpacity = DEFAULT_OPACITY;
+@@ -101,8 +104,8 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+     private boolean mIsPopupActive = false;
+     private boolean mNeedsFullUiUpdate = true;
+     private boolean mIsViewAttached = false;
++    private boolean mIsExpanded = false;
+     
+-    // Debounce UI updates
+     private boolean mUpdatePending = false;
+     private long mLastUpdateTime = 0;
+ 
+@@ -122,20 +125,17 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+             new MediaSessionManagerHelper.MediaMetadataListener() {
+                 @Override
+                 public void onMediaMetadataChanged() {
+-                    // Force full UI update when metadata changes
+                     mNeedsFullUiUpdate = true;
+                     requestUiUpdate();
+                 }
+ 
+                 @Override
+                 public void onPlaybackStateChanged() {
+-                    // Force full UI update when playback state changes
+                     mNeedsFullUiUpdate = true;
+                     requestUiUpdate();
+                 }
+             };
+ 
+-    /** Constructor */
+     public OnGoingActionProgressController(
+             Context context, OnGoingActionProgressGroup progressGroup,
+             NotificationListener notificationListener,
+@@ -159,31 +159,62 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+         mBackgroundExecutor = Executors.newSingleThreadExecutor();
+ 
+         mProgressBar = progressGroup.progressBarView;
++        mCircularProgressBar = progressGroup.circularProgressBarView;
+         mProgressRootView = progressGroup.rootView;
++        mCompactRootView = progressGroup.compactRootView;
+         mIconView = progressGroup.iconView;
++        mCompactIconView = progressGroup.compactIconView;
+ 
+         mIconFetcher = new IconFetcher(context);
+         mMediaSessionHelper = MediaSessionManagerHelper.Companion.getInstance(context);
+ 
+         mGestureDetector = new GestureDetector(mContext, new MediaGestureListener());
+ 
+-        // Initialize
+         mKeyguardStateController.addCallback(this);
+         mNotificationListener.addNotificationHandler(this);
+         mSettingsObserver.register();
+         
+-        // Optimize touch listeners - only set once
+         mProgressRootView.setOnTouchListener((v, event) -> mGestureDetector.onTouchEvent(event));
++        mCompactRootView.setOnTouchListener((v, event) -> mGestureDetector.onTouchEvent(event));
++        
++        mCompactRootView.setOnClickListener(v -> {
++            if (mIsCompactModeEnabled && !mIsExpanded) {
++                expandCompactView();
++            } else if (mShowMediaProgress && mMediaSessionHelper.isMediaPlaying()) {
++                showMediaPopup(mProgressRootView);
++            } else {
++                openTrackedApp();
++            }
++            VibrationUtils.triggerVibration(mContext, 3);
++        });
++        
+         mMediaSessionHelper.addMediaMetadataListener(mMediaMetadataListener);
+         
+         mIsViewAttached = true;
+         updateSettings();
+     }
+ 
+-    /** Gesture listener for media controls */
++    private void expandCompactView() {
++        mIsExpanded = true;
++        mCompactRootView.setVisibility(View.GONE);
++        mProgressRootView.setVisibility(View.VISIBLE);
++        
++        mHandler.postDelayed(() -> {
++            if (mIsCompactModeEnabled && mIsExpanded) {
++                mIsExpanded = false;
++                requestUiUpdate();
++            }
++        }, 5000);
++    }
++
+     private class MediaGestureListener extends GestureDetector.SimpleOnGestureListener {
+         @Override
+         public boolean onSingleTapConfirmed(MotionEvent e) {
++            if (mIsCompactModeEnabled && !mIsExpanded) {
++                expandCompactView();
++                return true;
++            }
++            
+             if (mShowMediaProgress && mMediaSessionHelper.isMediaPlaying()) {
+                 showMediaPopup(mProgressRootView);
+             } else {
+@@ -229,18 +260,13 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+         }
+     }
+ 
+-    /**
+-     * Request a UI update with debouncing to prevent too many rapid updates
+-     */
+     private void requestUiUpdate() {
+         long currentTime = System.currentTimeMillis();
+         if (!mUpdatePending && (currentTime - mLastUpdateTime > DEBOUNCE_DELAY_MS)) {
+-            // Update immediately if enough time has passed since last update
+             mUpdatePending = false;
+             mLastUpdateTime = currentTime;
+             updateViews();
+         } else if (!mUpdatePending) {
+-            // Schedule update for later
+             mUpdatePending = true;
+             mHandler.postDelayed(() -> {
+                 mUpdatePending = false;
+@@ -250,48 +276,72 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+         }
+     }
+ 
+-    /** Updates the UI based on current state */
+     private void updateViews() {
+         if (!mIsViewAttached) return;
+         
+-        mProgressRootView.setAlpha(mProgressBarOpacity / 255f);
++        float opacity = mProgressBarOpacity / 255f;
++        mProgressRootView.setAlpha(opacity);
++        mCompactRootView.setAlpha(opacity);
+         
+         if (mIsForceHidden) {
+             mProgressRootView.setVisibility(View.GONE);
++            mCompactRootView.setVisibility(View.GONE);
+             return;
+         }
+ 
+         boolean isMediaPlaying = mShowMediaProgress && mMediaSessionHelper.isMediaPlaying();
+-        if (isMediaPlaying) {
+-            if (mNeedsFullUiUpdate) {
+-                updateMediaProgressFull();
+-                mNeedsFullUiUpdate = false;
++        
++        if (mIsCompactModeEnabled && !mIsExpanded) {
++            mProgressRootView.setVisibility(View.GONE);
++            
++            if (!mIsEnabled && !isMediaPlaying) {
++                mCompactRootView.setVisibility(View.GONE);
++                return;
++            }
++            
++            mCompactRootView.setVisibility(View.VISIBLE);
++            
++            if (isMediaPlaying) {
++                updateMediaProgressCompact();
+             } else {
+-                updateMediaProgressOnly();
++                updateNotificationProgressCompact();
+             }
+         } else {
+-            updateNotificationProgress();
++            mCompactRootView.setVisibility(View.GONE);
++            
++            if (isMediaPlaying) {
++                if (mNeedsFullUiUpdate) {
++                    updateMediaProgressFull();
++                    mNeedsFullUiUpdate = false;
++                } else {
++                    updateMediaProgressOnly();
++                }
++            } else {
++                updateNotificationProgress();
++            }
+         }
+     }
+ 
+-    /** Updates only the media progress value without changing other UI elements */
+-    private void updateMediaProgressOnly() {
+-        if (!mIsViewAttached) return;
+-        
+-        // Only update if visible to avoid unnecessary work
+-        if (mProgressRootView.getVisibility() != View.VISIBLE) return;
+-        
+-        long totalDuration = mMediaSessionHelper.getTotalDuration();
+-        long currentProgress = mMediaSessionHelper.getMediaControllerPlaybackState() != null
+-                ? mMediaSessionHelper.getMediaControllerPlaybackState().getPosition() : 0;
+-                
+-        if (totalDuration > 0 && mProgressBar != null) {
+-            mProgressBar.setMax((int) totalDuration);
+-            mProgressBar.setProgress((int) currentProgress);
+-        }
++private void updateMediaProgressOnly() {
++    if (!mIsViewAttached) return;
++    
++    long totalDuration = mMediaSessionHelper.getTotalDuration();
++    long currentProgress = mMediaSessionHelper.getMediaControllerPlaybackState() != null
++            ? mMediaSessionHelper.getMediaControllerPlaybackState().getPosition() : 0;
++            
++    // Update the standard progress bar if visible
++    if (mProgressRootView.getVisibility() == View.VISIBLE && mProgressBar != null && totalDuration > 0) {
++        mProgressBar.setMax((int) totalDuration);
++        mProgressBar.setProgress((int) currentProgress);
+     }
++    
++    // Also update the circular progress bar for compact mode
++    if (mCompactRootView.getVisibility() == View.VISIBLE && mCircularProgressBar != null && totalDuration > 0) {
++        mCircularProgressBar.setMax((int) totalDuration);
++        mCircularProgressBar.setProgress((int) currentProgress);
++    }
++}
+ 
+-    /** Updates complete media UI including icon and visibility */
+     private void updateMediaProgressFull() {
+         if (!mIsViewAttached) return;
+         
+@@ -299,13 +349,11 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+         mMediaProgressHandler.removeCallbacks(mMediaProgressRunnable);
+         mMediaProgressHandler.post(mMediaProgressRunnable);
+ 
+-        // Load icon in background if needed
+         Drawable mediaAppIcon = mMediaSessionHelper.getMediaAppIcon();
+         
+         if (mediaAppIcon != null) {
+             mIconView.setImageDrawable(mediaAppIcon);
+         } else {
+-            // Get current media session package and load icon if available
+             String packageName = null;
+             if (mMediaSessionHelper.getMediaControllerPlaybackState() != null &&
+                 mMediaSessionHelper.getMediaControllerPlaybackState().getExtras() != null) {
+@@ -327,8 +375,48 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+ 
+         updateMediaProgressOnly();
+     }
++    
++    private void updateMediaProgressCompact() {
++        if (!mIsViewAttached) return;
++        
++        mCompactRootView.setVisibility(View.VISIBLE);
++        mMediaProgressHandler.removeCallbacks(mMediaProgressRunnable);
++        mMediaProgressHandler.post(mMediaProgressRunnable);
++
++        long totalDuration = mMediaSessionHelper.getTotalDuration();
++        long currentProgress = mMediaSessionHelper.getMediaControllerPlaybackState() != null
++                ? mMediaSessionHelper.getMediaControllerPlaybackState().getPosition() : 0;
++                
++        if (totalDuration > 0 && mCircularProgressBar != null) {
++            mCircularProgressBar.setMax((int) totalDuration);
++            mCircularProgressBar.setProgress((int) currentProgress);
++        }
++
++        Drawable mediaAppIcon = mMediaSessionHelper.getMediaAppIcon();
++        
++        if (mediaAppIcon != null) {
++            mCompactIconView.setImageDrawable(mediaAppIcon);
++        } else {
++            String packageName = null;
++            if (mMediaSessionHelper.getMediaControllerPlaybackState() != null &&
++                mMediaSessionHelper.getMediaControllerPlaybackState().getExtras() != null) {
++                packageName = mMediaSessionHelper.getMediaControllerPlaybackState().getExtras().getString("package");
++            }
++            
++            if (packageName != null) {
++                loadIconInBackground(packageName, drawable -> {
++                    if (mCompactIconView != null && drawable != null) {
++                        mCompactIconView.setImageDrawable(drawable);
++                    } else if (mCompactIconView != null) {
++                        mCompactIconView.setImageDrawable(mContext.getResources().getDrawable(R.drawable.ic_default_music_icon));
++                    }
++                });
++            } else if (mCompactIconView != null) {
++                mCompactIconView.setImageDrawable(mContext.getResources().getDrawable(R.drawable.ic_default_music_icon));
++            }
++        }
++    }
+ 
+-    /** Updates UI for notification progress */
+     private void updateNotificationProgress() {
+         if (!mIsViewAttached) return;
+         
+@@ -349,7 +437,6 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+             mProgressBar.setProgress(mCurrentProgress);
+         }
+ 
+-        // Use cached icons or load in background
+         if (mTrackedPackageName != null) {
+             loadIconInBackground(mTrackedPackageName, drawable -> {
+                 if (mIconView != null && drawable != null) {
+@@ -358,14 +445,39 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+             });
+         }
+     }
++    
++    private void updateNotificationProgressCompact() {
++        if (!mIsViewAttached) return;
++        
++        if (!mIsEnabled || !mIsTrackingProgress) {
++            mCompactRootView.setVisibility(View.GONE);
++            mMediaProgressHandler.removeCallbacks(mMediaProgressRunnable);
++            return;
++        }
++
++        mCompactRootView.setVisibility(View.VISIBLE);
++        if (mCurrentProgressMax <= 0) {
++            Log.w(TAG, "updateViews: invalid max progress " + mCurrentProgressMax + ", using 100");
++            mCurrentProgressMax = 100;
++        }
++
++        if (mCircularProgressBar != null) {
++            mCircularProgressBar.setMax(mCurrentProgressMax);
++            mCircularProgressBar.setProgress(mCurrentProgress);
++        }
++
++        if (mTrackedPackageName != null) {
++            loadIconInBackground(mTrackedPackageName, drawable -> {
++                if (mCompactIconView != null && drawable != null) {
++                    mCompactIconView.setImageDrawable(drawable);
++                }
++            });
++        }
++    }
+ 
+-    /**
+-     * Load package icon in background thread and cache it
+-     */
+     private void loadIconInBackground(String packageName, IconCallback callback) {
+         if (packageName == null) return;
+         
+-        // Check cache first
+         if (mIconCache.containsKey(packageName)) {
+             IconFetcher.AdaptiveDrawableResult cachedResult = mIconCache.get(packageName);
+             if (cachedResult != null && cachedResult.drawable != null) {
+@@ -374,16 +486,13 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+             }
+         }
+         
+-        // Load in background
+         mBackgroundExecutor.execute(() -> {
+             final IconFetcher.AdaptiveDrawableResult iconResult = 
+                     mIconFetcher.getMonotonicPackageIcon(packageName);
+             
+             if (iconResult != null && iconResult.drawable != null) {
+-                // Cache the result
+                 mIconCache.put(packageName, iconResult);
+                 
+-                // Apply on main thread
+                 mHandler.post(() -> {
+                     callback.onIconLoaded(iconResult.drawable);
+                 });
+@@ -391,19 +500,16 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+         });
+     }
+     
+-    /** Interface for icon loading callbacks */
+     private interface IconCallback {
+         void onIconLoaded(@Nullable Drawable drawable);
+     }
+ 
+-    /** Helper to extract progress from a notification */
+     private void extractProgress(Notification notification) {
+         Bundle extras = notification.extras;
+         mCurrentProgressMax = extras.getInt(Notification.EXTRA_PROGRESS_MAX, 100);
+         mCurrentProgress = extras.getInt(Notification.EXTRA_PROGRESS, 0);
+     }
+ 
+-    /** Tracks progress of a notification */
+     private void trackProgress(final StatusBarNotification sbn) {
+         mIsTrackingProgress = true;
+         mTrackedNotificationKey = sbn.getKey();
+@@ -412,7 +518,6 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+         requestUiUpdate();
+     }
+ 
+-    /** Updates progress if the notification matches the tracked key */
+     private void updateProgressIfNeeded(final StatusBarNotification sbn) {
+         if (!mIsTrackingProgress) {
+             return;
+@@ -423,7 +528,6 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+         }
+     }
+ 
+-    /** Finds a notification by its key */
+     @Nullable
+     private StatusBarNotification findNotificationByKey(String key) {
+         if (key == null || mNotificationListener == null) return null;
+@@ -436,7 +540,6 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+         return null;
+     }
+ 
+-    /** Checks if a notification has progress */
+     private static boolean hasProgress(@NonNull final Notification notification) {
+         Bundle extras = notification.extras;
+         if (extras == null) return false;
+@@ -448,7 +551,6 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+                !indeterminate && maxProgressValid;
+     }
+ 
+-    /** Shows a media control popup */
+     private void showMediaPopup(View anchorView) {
+         if (mIsPopupActive) {
+             if (mMediaPopup != null) {
+@@ -458,7 +560,6 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+             return;
+         }
+ 
+-        // Use view to ensure context is still valid
+         Context context = anchorView.getContext();
+         View popupView = LayoutInflater.from(context).inflate(R.layout.media_control_popup, null);
+         
+@@ -499,7 +600,6 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+         });
+     }
+ 
+-    /** Opens the app associated with the tracked notification */
+     private void openTrackedApp() {
+         if (mTrackedPackageName == null) {
+             Log.w(TAG, "No tracked package available");
+@@ -515,14 +615,12 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+         }
+     }
+ 
+-    /** Handles notification posted event */
+     private void onNotificationPosted(final StatusBarNotification sbn) {
+         if (sbn == null) return;
+         
+         Notification notification = sbn.getNotification();
+         if (notification == null) return;
+         
+-        // Process in background to avoid UI jank
+         mBackgroundExecutor.execute(() -> {
+             boolean hasValidProgress = hasProgress(notification);
+             
+@@ -540,17 +638,14 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+             
+             synchronized (this) {
+                 if (!mIsTrackingProgress) {
+-                    // New notification to track
+                     mHandler.post(() -> trackProgress(sbn));
+                 } else {
+-                    // Update existing notification
+                     mHandler.post(() -> updateProgressIfNeeded(sbn));
+                 }
+             }
+         });
+     }
+ 
+-    /** Handles notification removed event */
+     private void onNotificationRemoved(final StatusBarNotification sbn) {
+         if (sbn == null) return;
+         
+@@ -564,7 +659,6 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+         }
+     }
+ 
+-    /** Sets force hidden state */
+     public void setForceHidden(final boolean forceHidden) {
+         if (mIsForceHidden != forceHidden) {
+             Log.d(TAG, "setForceHidden " + forceHidden);
+@@ -573,7 +667,6 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+         }
+     }
+ 
+-    // Media playback control helpers
+     private void toggleMediaPlaybackState() { 
+         if (mMediaSessionHelper != null) {
+             mMediaSessionHelper.toggleMediaPlaybackState(); 
+@@ -598,7 +691,6 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+         }
+     }
+ 
+-    // NotificationHandler implementation
+     @Override
+     public void onNotificationPosted(StatusBarNotification sbn, NotificationListenerService.RankingMap _rankingMap) {
+         onNotificationPosted(sbn);
+@@ -616,21 +708,17 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+ 
+     @Override
+     public void onNotificationRankingUpdate(NotificationListenerService.RankingMap _rankingMap) {
+-        // No need to process ranking updates
+     }
+     
+     @Override
+     public void onNotificationsInitialized() {
+-        // Opportunity to handle initial notification set if needed
+     }
+ 
+-    // KeyguardStateController.Callback implementation
+     @Override
+     public void onKeyguardShowingChanged() {
+         setForceHidden(mKeyguardStateController.isShowing());
+     }
+ 
+-    /** Settings observer for system settings */
+     private class SettingsObserver extends ContentObserver {
+         SettingsObserver(Handler handler) { super(handler); }
+ 
+@@ -639,7 +727,8 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+             super.onChange(selfChange, uri);
+             if (uri.equals(Settings.System.getUriFor(ONGOING_ACTION_CHIP_ENABLED)) ||
+                     uri.equals(Settings.System.getUriFor(SHOW_MEDIA_PROGRESS)) ||
+-                    uri.equals(Settings.System.getUriFor(PROGRESS_BAR_OPACITY))) {
++                    uri.equals(Settings.System.getUriFor(PROGRESS_BAR_OPACITY)) ||
++                    uri.equals(Settings.System.getUriFor(COMPACT_MODE_ENABLED))) {
+                 updateSettings();
+             }
+         }
+@@ -651,6 +740,8 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+                     false, this, UserHandle.USER_ALL);
+             mContentResolver.registerContentObserver(Settings.System.getUriFor(PROGRESS_BAR_OPACITY), 
+                     false, this, UserHandle.USER_ALL);
++            mContentResolver.registerContentObserver(Settings.System.getUriFor(COMPACT_MODE_ENABLED), 
++                    false, this, UserHandle.USER_ALL);
+             updateSettings();
+         }
+ 
+@@ -659,64 +750,60 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+         }
+     }
+ 
+-    /** Updates settings from system preferences */
+     private void updateSettings() {
+         boolean wasEnabled = mIsEnabled;
+         boolean wasShowingMedia = mShowMediaProgress;
++        boolean wasCompactMode = mIsCompactModeEnabled;
+         
+         mIsEnabled = Settings.System.getIntForUser(mContentResolver, 
+                 ONGOING_ACTION_CHIP_ENABLED, 1, UserHandle.USER_CURRENT) == 1;
+         mShowMediaProgress = Settings.System.getIntForUser(mContentResolver, 
+                 SHOW_MEDIA_PROGRESS, 0, UserHandle.USER_CURRENT) == 1;
++        mIsCompactModeEnabled = Settings.System.getIntForUser(mContentResolver, 
++                COMPACT_MODE_ENABLED, 0, UserHandle.USER_CURRENT) == 1;
+         
+-        // Read opacity as percentage (0-100)
+         int opacityPercentage = Settings.System.getIntForUser(mContentResolver, 
+                 PROGRESS_BAR_OPACITY, DEFAULT_OPACITY_PERCENTAGE, UserHandle.USER_CURRENT);
+         
+-        // Ensure percentage is within valid range
+         opacityPercentage = Math.max(0, Math.min(100, opacityPercentage));
+         
+-        // Convert percentage to alpha value (0-255)
+         mProgressBarOpacity = (int)(opacityPercentage * 2.55f);
+         
+-        // Only update if something actually changed
+-        if (wasEnabled != mIsEnabled || wasShowingMedia != mShowMediaProgress) {
++        if (wasEnabled != mIsEnabled || wasShowingMedia != mShowMediaProgress || wasCompactMode != mIsCompactModeEnabled) {
+             mNeedsFullUiUpdate = true;
++            mIsExpanded = false;
+         }
+         
+         requestUiUpdate();
+     }
+ 
+-    /** Cleans up resources */
+     public void destroy() {
+         mIsViewAttached = false;
+         
+-        // Unregister observers/callbacks
+         mSettingsObserver.unregister();
+         mKeyguardStateController.removeCallback(this);
+         mMediaSessionHelper.removeMediaMetadataListener(mMediaMetadataListener);
+         
+-        // Cancel any pending operations
+         mMediaProgressHandler.removeCallbacks(mMediaProgressRunnable);
+         mHandler.removeCallbacksAndMessages(null);
+         
+-        // Dismiss popup if showing
+         if (mMediaPopup != null && mMediaPopup.isShowing()) {
+             mMediaPopup.dismiss();
+         }
+         
+-        // Clear references
+         mIsTrackingProgress = false;
+         mTrackedNotificationKey = null;
+         mTrackedPackageName = null;
+         
+-        // Clear icon cache
+         mIconCache.clear();
+         
+-        // Clear views
+         if (mIconView != null) {
+             mIconView.setImageDrawable(null);
+         }
++        
++        if (mCompactIconView != null) {
++            mCompactIconView.setImageDrawable(null);
++        }
+     }
+ 
+     private static int getThemeColor(Context context, int attrResId) {
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/OnGoingActionProgressGroup.java b/packages/SystemUI/src/com/android/systemui/statusbar/OnGoingActionProgressGroup.java
+index 8542454af..734aa4482 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/OnGoingActionProgressGroup.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/OnGoingActionProgressGroup.java
+@@ -26,10 +26,19 @@ public class OnGoingActionProgressGroup {
+     public final ImageView iconView;
+     public final ProgressBar progressBarView;
+ 
++    public final View compactRootView;
++    public final ImageView compactIconView;
++    public final ProgressBar circularProgressBarView;
++
+     public OnGoingActionProgressGroup(View rootView, ImageView iconView,
+-                                      ProgressBar progressBarView) {
++                                      ProgressBar progressBarView,
++                                      View compactRootView, ImageView compactIconView,
++                                      ProgressBar circularProgressBarView) {
+         this.rootView = rootView;
+         this.iconView = iconView;
+         this.progressBarView = progressBarView;
++        this.compactRootView = compactRootView;
++        this.compactIconView = compactIconView;
++        this.circularProgressBarView = circularProgressBarView;
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/PhoneStatusBarViewController.kt b/packages/SystemUI/src/com/android/systemui/statusbar/phone/PhoneStatusBarViewController.kt
+index fb973fb06..b8624f01e 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/PhoneStatusBarViewController.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/PhoneStatusBarViewController.kt
+@@ -238,11 +238,15 @@ private constructor(
+         }
+     }
+ 
+-    fun getOngoingActionProgressGroup(): OnGoingActionProgressGroup{
++    fun getOngoingActionProgressGroup(): OnGoingActionProgressGroup {
+         return OnGoingActionProgressGroup(
+             mView.findViewById(R.id.status_bar_ongoing_action_chip),
+             mView.findViewById(R.id.ongoing_action_app_icon) as ImageView,
+             mView.findViewById(R.id.app_action_progress) as ProgressBar,
++
++	    mView.findViewById(R.id.ongoing_progress_chip_compact),
++            mView.findViewById(R.id.ongoing_action_app_icon_compact) as ImageView,
++            mView.findViewById(R.id.circular_progress) as ProgressBar
+         )
+     }
+ 
+-- 
+2.43.0
+

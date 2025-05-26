@@ -1,0 +1,36 @@
+From 6d342542b0f42656db859bca09b44f01d1db423f Mon Sep 17 00:00:00 2001
+From: Dmitrii <bankersenator@gmail.com>
+Date: Sat, 10 May 2025 15:36:13 +0000
+Subject: [PATCH] Progress indicator: dont track notifications when feature off
+
+Signed-off-by: Dmitrii <bankersenator@gmail.com>
+---
+ .../statusbar/OnGoingActionProgressController.java        | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/OnGoingActionProgressController.java b/packages/SystemUI/src/com/android/systemui/statusbar/OnGoingActionProgressController.java
+index 51348d3f8..e138eb40d 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/OnGoingActionProgressController.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/OnGoingActionProgressController.java
+@@ -617,13 +617,15 @@ private void updateMediaProgressOnly() {
+ 
+     private void onNotificationPosted(final StatusBarNotification sbn) {
+         if (sbn == null) return;
+-        
++
++        if (!mIsEnabled) return;
++
+         Notification notification = sbn.getNotification();
+         if (notification == null) return;
+-        
++
+         mBackgroundExecutor.execute(() -> {
+             boolean hasValidProgress = hasProgress(notification);
+-            
++
+             if (!hasValidProgress) {
+                 if (mTrackedNotificationKey != null && mTrackedNotificationKey.equals(sbn.getKey())) {
+                     Log.d(TAG, "Tracked notification has lost progress");
+-- 
+2.43.0
+

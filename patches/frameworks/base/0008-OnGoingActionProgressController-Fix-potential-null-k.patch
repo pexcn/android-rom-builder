@@ -1,0 +1,28 @@
+From c63d94d1ecd72249f4550520e6f2ee948e391aa6 Mon Sep 17 00:00:00 2001
+From: NurKeinNeid <nurkeinneid@derpfest.org>
+Date: Mon, 3 Mar 2025 01:26:49 +0100
+Subject: [PATCH 08/24] OnGoingActionProgressController: Fix potential null key
+ comparison
+
+Change-Id: I2bba4d8d1f6f94402edd2235f3677ef8375a39fb
+Signed-off-by: NurKeinNeid <nurkeinneid@derpfest.org>
+---
+ .../systemui/statusbar/OnGoingActionProgressController.java     | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/OnGoingActionProgressController.java b/packages/SystemUI/src/com/android/systemui/statusbar/OnGoingActionProgressController.java
+index 04826f8bd..24ae67fb1 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/OnGoingActionProgressController.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/OnGoingActionProgressController.java
+@@ -225,7 +225,7 @@ public class OnGoingActionProgressController implements NotificationListener.Not
+         Notification notification = sbn.getNotification();
+         if (!hasProgress(notification)) {
+             // Log.d(TAG, "Got notification without progress");
+-            if (sbn.getKey() == mTrackedNotificationKey) {
++            if (mTrackedNotificationKey != null && mTrackedNotificationKey.equals(sbn.getKey())) {
+                 // The notification we track has no progress anymore
+                 Log.d(TAG, "Tracked notification has lost progress");
+                 synchronized (this) {
+-- 
+2.43.0
+
