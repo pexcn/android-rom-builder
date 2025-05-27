@@ -62,6 +62,16 @@ parse_args() {
         ;;
     esac
   done
+
+  # parameters checking
+  if [ -z "$DEVICE" ]; then
+    error "\`-d | --device\` parameter must be specified."
+    exit 1
+  fi
+  if [ -z "$variant" ]; then
+    error "\`-v | --variant\` parameter must be specified."
+    exit 1
+  fi
 }
 
 build_rom() {
