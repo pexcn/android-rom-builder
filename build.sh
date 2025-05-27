@@ -11,10 +11,11 @@ USAGE:
     $PROG_NAME [OPTIONS]
 
 OPTIONS:
-    -d, --device [CODE_NAME]         Device code name.
-    -v, --variant [BUILD_VARIANT]    Build variant.
-    -c, --crave                      Whether to Build on foss.crave.io.
-    -h, --help                       Show this help message then exit.
+    -d, --device <CODE_NAME>                       Device code name.
+    -v, --variant <BUILD_VARIANT>                  Build variant.
+    -m, --manifest [LOCAL_MANIFESTS_URL:BRANCH]    Local manifests git url and branch.
+    -c, --crave                                    Whether to Build on foss.crave.io.
+    -h, --help                                     Show this help message then exit.
 EOF
 }
 
@@ -64,15 +65,18 @@ build_rom() {
   repo forall -c git clean -fdx >/dev/null
 
   # clone local_manifests
-  rm -rf .repo/local_manifests
-  git clone "$MANIFEST_URL" -b "$MANIFEST_BRANCH" .repo/local_manifests
+  if [ -n "$MANIFEST_URL" ]; then
+    rm -rf .repo/local_manifests
+    git clone "$MANIFEST_URL" -b "$MANIFEST_BRANCH" .repo/local_manifests
+  fi
+
   _repo_sync
 
-  # # apply patch
-  # git clone https://github.com/pexcn/android-rom-builder.git -b pixelos-15
-  # cd android-rom-builder
-  # ./patch.sh ..
-  # cd -
+  ## apply patch
+  #git clone https://github.com/pexcn/android-rom-builder.git -b pixelos-15
+  #cd android-rom-builder
+  #./patch.sh ..
+  #cd -
 
   if [ "$CRAVE" = 1 ]; then
     export TZ=${TZ:-Asia/Taipei}
