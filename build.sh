@@ -11,21 +11,12 @@ USAGE:
     $PROG_NAME [OPTIONS]
 
 OPTIONS:
-    -d, --device <CODE_NAME>                       Device code name.
-    -v, --variant <BUILD_VARIANT>                  Build variant.
-    -m, --manifest [LOCAL_MANIFESTS_URL:BRANCH]    Local manifests git url and branch.
-    -r, --reset                                    Whether to reset the sources before starting build.
-    -c, --crave                                    Whether to Build on foss.crave.io.
-    -h, --help                                     Show this help message then exit.
+    -d, --device <CODE_NAME>           Device code name.
+    -v, --variant <BUILD_VARIANT>      Build variant.
+    -m, --manifest [GIT_URL:BRANCH]    Local manifests git url and branch.
+    -r, --reset                        Whether to reset the sources before starting build.
+    -h, --help                         Show this help message then exit.
 EOF
-}
-
-_repo_sync() {
-  if [ "$CRAVE" = 1 ]; then
-    /opt/crave/resync.sh
-  else
-    repo sync --current-branch --force-sync --optimized-fetch --no-tags --no-clone-bundle --prune -j"$(nproc --all)"
-  fi
 }
 
 parse_args() {
@@ -46,10 +37,6 @@ parse_args() {
         ;;
       -r | --reset)
         RESET=1
-        shift 1
-        ;;
-      -c | --crave)
-        CRAVE=1
         shift 1
         ;;
       -h | --help)
@@ -87,22 +74,21 @@ build_rom() {
     git clone "$MANIFEST_URL" -b "$MANIFEST_BRANCH" .repo/local_manifests
   fi
 
-  _repo_sync
+  # repo sync
+  if [ "$DCDEVSPACE" = 1 ]; then
+    /opt/crave/resync.sh
+  else
+    repo sync --current-branch --force-sync --optimized-fetch --no-tags --no-clone-bundle --prune -j"$(nproc --all)"
+  fi
 
-  ## apply patch
-  #git clone https://github.com/pexcn/android-rom-builder.git -b pixelos-15
-  #cd android-rom-builder
-  #./patch.sh ..
-  #cd -
-
-  if [ "$CRAVE" = 1 ]; then
+  if [ "$DCDEVSPACE" = 1 ]; then
     export TZ=${TZ:-Asia/Taipei}
     export BUILD_USERNAME=${BUILD_USERNAME:-pexcn}
     export BUILD_HOSTNAME=${BUILD_HOSTNAME:-crave}
   fi
 
+  # start build
   . build/envsetup.sh
-  #lunch aosp_munch-bp1a-userdebug
   breakfast "$DEVICE" "$VARIANT"
   mka bacon
 }
