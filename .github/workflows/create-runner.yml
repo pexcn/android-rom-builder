@@ -34,4 +34,5 @@ jobs:
               tar -zxf - -C actions-runner
             cd actions-runner
             ./config.sh --unattended --name crave --url "https://github.com/${{ github.repository }}" --token "${{ inputs.RUNNER_TOKEN }}"
+            ./run.sh &
           '
