@@ -14,6 +14,7 @@ OPTIONS:
     -d, --device <CODE_NAME>                       Device code name.
     -v, --variant <BUILD_VARIANT>                  Build variant.
     -m, --manifest [LOCAL_MANIFESTS_URL:BRANCH]    Local manifests git url and branch.
+    -r, --reset                                    Whether to reset the sources before starting build.
     -c, --crave                                    Whether to Build on foss.crave.io.
     -h, --help                                     Show this help message then exit.
 EOF
@@ -43,6 +44,10 @@ parse_args() {
         MANIFEST_BRANCH="${2##*:}"
         shift 2
         ;;
+      -r | --reset)
+        RESET=1
+        shift 1
+        ;;
       -c | --crave)
         CRAVE=1
         shift 1
@@ -61,8 +66,10 @@ parse_args() {
 
 build_rom() {
   # reset changes
-  repo forall -c git reset --hard HEAD >/dev/null
-  repo forall -c git clean -fdx >/dev/null
+  if [ "$RESET" = 1 ]; then
+    repo forall -c git reset --hard HEAD >/dev/null
+    repo forall -c git clean -fdx >/dev/null
+  fi
 
   # clone local_manifests
   if [ -n "$MANIFEST_URL" ]; then
