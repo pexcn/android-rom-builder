@@ -33,5 +33,5 @@ jobs:
             curl -L https://github.com/actions/runner/releases/download/v${version}/actions-runner-linux-x64-${version}.tar.gz | \
               tar -zxf - -C actions-runner
             cd actions-runner
-            ./config.sh --unattended --url "https://github.com/${{ github.repository }}" --token "${{ inputs.RUNNER_TOKEN }}"
+            ./config.sh --unattended --name crave --url "https://github.com/${{ github.repository }}" --token "${{ inputs.RUNNER_TOKEN }}"
           '
