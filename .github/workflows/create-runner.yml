@@ -25,7 +25,7 @@ jobs:
           mv crave /usr/local/bin
           envsubst < crave.conf.sample > crave.conf
 
-      - name: Configure runner on devspace
+      - name: Configure runner
         run: |
           crave devspace -- '
             version=$(curl -sSL https://api.github.com/repos/actions/runner/releases/latest | jq -r .tag_name | sed 's/v//')
@@ -35,3 +35,8 @@ jobs:
             cd actions-runner
             ./config.sh --unattended --replace --name crave --url "https://github.com/${{ github.repository }}" --token "${{ inputs.RUNNER_TOKEN }}"
           '
+
+      - name: Connect runner
+        run: |
+          crave devspace -- 'cd actions-runner && ./run.sh' &
+          sleep 30
