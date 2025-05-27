@@ -8,7 +8,7 @@ on:
         required: true
 
 jobs:
-  build:
+  create-runner:
     runs-on: ubuntu-24.04
     env:
       TZ: Asia/Taipei
@@ -21,21 +21,17 @@ jobs:
 
       - name: Install crave
         run: |
-          # install crave
           curl -s https://raw.githubusercontent.com/accupara/crave/master/get_crave.sh | bash
           mv crave /usr/local/bin
-
-          # setup crave.conf
           envsubst < crave.conf.sample > crave.conf
 
       - name: Configure runner on devspace
         run: |
-          crave devspace -- "rm -rf actions-runner || ::
-            version=$(curl -s "https://api.github.com/repos/actions/runner/releases/latest" | grep -oP '"tag_name": "\K[^"]*' | sed 's/^v//')
-            mkdir actions-runner
-            curl -sSL https://github.com/actions/runner/releases/download/v${version}/actions-runner-linux-x64-${version}.tar.gz | tar -zxf - -C actions-runner
+          crave devspace -- '
+            version=$(curl -sSL https://api.github.com/repos/actions/runner/releases/latest | jq -r .tag_name | sed 's/v//')
+            rm -rf actions-runner && mkdir actions-runner
+            curl -L https://github.com/actions/runner/releases/download/v${version}/actions-runner-linux-x64-${version}.tar.gz | \
+              tar -zxf - -C actions-runner
             cd actions-runner
-            ls -al"
-
-#./config.sh --unattended --url "https://github.com/${{ github.repository }}" --token "${{ inputs.RUNNER_TOKEN }}"
-#./run.sh
+            ./config.sh --unattended --url "https://github.com/${{ github.repository }}" --token "${{ inputs.RUNNER_TOKEN }}"
+          '
