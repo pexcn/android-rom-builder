@@ -1,0 +1,67 @@
+name: Crave Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_name:
+        type: choice
+        description: The project name of foss.crave.io
+        default: PixelOS
+        options:
+          - PixelOS
+          - DerpFest
+          - LineageOS-22.1
+          - AOSP
+          - TWRP
+      # clean_build:
+      #   type: boolean
+      #   description: ...
+
+jobs:
+  build:
+    runs-on: self-hosted
+    concurrency:
+      group: ${{ github.repository_owner }}
+    env:
+      TZ: Asia/Taipei
+      #CRAVE_USERNAME: ${{ secrets.CRAVE_USERNAME }}
+      #CRAVE_TOKEN: ${{ secrets.CRAVE_TOKEN }}
+    steps:
+      - name: Setup environment variables
+        run: |
+          case "${{ inputs.project_name }}" in
+            PixelOS)
+              PROJECT_ID=82
+              ;;
+            DerpFest)
+              PROJECT_ID=64
+              ;;
+            LineageOS-22.1)
+              PROJECT_ID=93
+              ;;
+            AOSP)
+              PROJECT_ID=35
+              ;;
+            TWRP)
+              PROJECT_ID=78
+              ;;
+            *)
+              echo "unknown project_name."
+              exit 1
+              ;;
+          esac
+
+          echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
+          echo "PROJECT_DIR=/crave-devspaces/${{ inputs.project_name }}" >> $GITHUB_ENV
+
+          # remove extra double quotes
+          # god knows why there are two extra double quotes
+          DCMASTER=${DCMASTER//\"/}
+          echo "DCMASTER=$DCMASTER" >> $GITHUB_ENV
+
+      - name: Setup Project
+        run: |
+          if grep -q "$PROJECT_ID" <(crave clone list --json | jq -r '.clones[]."Project ID"'); then
+            crave clone destroy -y $PROJECT_DIR || { echo "Project $(basename $PROJECT_DIR) destroy failed."; exit 1; }
+          fi
+          crave clone create --projectID $PROJECT_ID $PROJECT_DIR || { echo "Project $(basename $PROJECT_DIR) create failed."; exit 1; }

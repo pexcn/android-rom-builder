@@ -1,9 +1,9 @@
-name: Create self-hosted runner
+name: Create Runner
 
 on:
   workflow_dispatch:
     inputs:
-      RUNNER_TOKEN:
+      runner_token:
         description: 'GitHub actions self-hosted runner token.'
         required: true
 
@@ -33,7 +33,7 @@ jobs:
             curl -L https://github.com/actions/runner/releases/download/v${version}/actions-runner-linux-x64-${version}.tar.gz | \
               tar -zxf - -C actions-runner
             cd actions-runner
-            ./config.sh --unattended --replace --name crave --url "https://github.com/${{ github.repository }}" --token "${{ inputs.RUNNER_TOKEN }}"
+            ./config.sh --unattended --replace --name crave --url "https://github.com/${{ github.repository }}" --token "${{ inputs.runner_token }}"
           '
 
       - name: Connect runner
