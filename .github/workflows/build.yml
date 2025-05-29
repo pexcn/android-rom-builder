@@ -4,18 +4,33 @@ on:
   workflow_dispatch:
     inputs:
       project_name:
+        description: Project name of foss.crave.io
         type: choice
-        description: The project name of foss.crave.io
         default: PixelOS
         options:
           - PixelOS
           - DerpFest
-          - LineageOS-22.1
+          - LineageOS
           - AOSP
           - TWRP
-      # clean_build:
-      #   type: boolean
-      #   description: ...
+      device_code:
+        description: Device code
+        required: true
+      build_variant:
+        description: Build variant
+        type: choice
+        default: userdebug
+        options:
+          - eng
+          - userdebug
+          - user
+      local_manifests:
+        description: Local manifests
+        required: false
+      clean_build:
+        description: Clean build
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -24,8 +39,6 @@ jobs:
       group: ${{ github.repository_owner }}
     env:
       TZ: Asia/Taipei
-      #CRAVE_USERNAME: ${{ secrets.CRAVE_USERNAME }}
-      #CRAVE_TOKEN: ${{ secrets.CRAVE_TOKEN }}
     steps:
       - name: Setup environment variables
         run: |
@@ -51,17 +64,45 @@ jobs:
               ;;
           esac
 
+          if [ "${{ inputs.clean_build }}" = true ]; then
+            CLEAN_BUILD=1
+          else
+            CLEAN_BUILD=0
+          fi
+
           echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
           echo "PROJECT_DIR=/crave-devspaces/${{ inputs.project_name }}" >> $GITHUB_ENV
+          echo "PROJECT_NAME=${{ inputs.project_name }}" >> $GITHUB_ENV
+          echo "DEVICE_CODE=${{ inputs.device_code }}" >> $GITHUB_ENV
+          echo "BUILD_VARIANT=${{ inputs.build_variant }}" >> $GITHUB_ENV
+          echo "LOCAL_MANIFESTS=${{ inputs.local_manifests }}" >> $GITHUB_ENV
+          echo "CLEAN_BUILD=$CLEAN_BUILD" >> $GITHUB_ENV
 
-          # remove extra double quotes
-          # god knows why there are two extra double quotes
+          # remove extra double quotes, god knows why there are two extra double quotes
           DCMASTER=${DCMASTER//\"/}
           echo "DCMASTER=$DCMASTER" >> $GITHUB_ENV
 
-      - name: Setup Project
+      - name: Setup project
         run: |
           if grep -q "$PROJECT_ID" <(crave clone list --json | jq -r '.clones[]."Project ID"'); then
-            crave clone destroy -y $PROJECT_DIR || { echo "Project $(basename $PROJECT_DIR) destroy failed."; exit 1; }
+            crave clone destroy -y $PROJECT_DIR || {
+              echo "Project \"$PROJECT_NAME\" destroy failed."
+              exit 1
+            }
           fi
-          crave clone create --projectID $PROJECT_ID $PROJECT_DIR || { echo "Project $(basename $PROJECT_DIR) create failed."; exit 1; }
+          crave clone create --projectID $PROJECT_ID $PROJECT_DIR || {
+            echo "Project \"$PROJECT_NAME\" create failed."
+            exit 1
+          }
+
+      - name: Start build queue
+        timeout-minutes: 720
+        run: |
+          cd $PROJECT_DIR
+          crave run --no-patch -- '
+            curl -sSL https://raw.githubusercontent.com/pexcn/android-rom-builder/refs/heads/master/build.sh | bash -s -- \
+              --device $DEVICE_CODE \
+              --variant $BUILD_VARIANT \
+              --manifest $LOCAL_MANIFESTS \
+              --reset
+          '
