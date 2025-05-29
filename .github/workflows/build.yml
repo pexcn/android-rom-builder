@@ -98,8 +98,9 @@ jobs:
       - name: Start build queue
         timeout-minutes: 720
         run: |
+          [ "$CLEAN_BUILD" = 0 ] || CRAVE_RUN_ARGS="$CRAVE_RUN_ARGS --clean"
           cd $PROJECT_DIR
-          crave run --no-patch -- '
+          crave run --no-patch $CRAVE_RUN_ARGS -- '
             curl -sSL https://raw.githubusercontent.com/pexcn/android-rom-builder/refs/heads/master/build.sh | bash -s -- \
               --device $DEVICE_CODE \
               --variant $BUILD_VARIANT \
