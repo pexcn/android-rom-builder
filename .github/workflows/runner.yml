@@ -27,13 +27,15 @@ jobs:
 
       - name: Configure runner
         run: |
+          HOSTNAME=crave
+          sudo hostname $HOSTNAME
           crave devspace -- '
             version=$(curl -sSL https://api.github.com/repos/actions/runner/releases/latest | jq -r .tag_name | sed 's/v//')
             rm -rf actions-runner && mkdir actions-runner
             curl -L https://github.com/actions/runner/releases/download/v${version}/actions-runner-linux-x64-${version}.tar.gz | \
               tar -zxf - -C actions-runner
             cd actions-runner
-            ./config.sh --unattended --replace --name crave --url "https://github.com/${{ github.repository }}" --token "${{ inputs.runner_token }}"
+            ./config.sh --unattended --replace --name $HOSTNAME --url "https://github.com/${{ github.repository }}" --token "${{ inputs.runner_token }}"
           '
 
       - name: Connect runner
