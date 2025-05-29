@@ -40,7 +40,7 @@ jobs:
     env:
       TZ: Asia/Taipei
     steps:
-      - name: Setup environment variables
+      - name: Setup environment
         run: |
           case "${{ inputs.project_name }}" in
             PixelOS)
