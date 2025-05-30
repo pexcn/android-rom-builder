@@ -11,7 +11,7 @@ USAGE:
     $PROG_NAME [OPTIONS]
 
 OPTIONS:
-    -d, --device <CODE_NAME>           Device code name.
+    -d, --device <DEVICE_CODE>         Device code.
     -v, --variant <BUILD_VARIANT>      Build variant.
     -m, --manifest [GIT_URL:BRANCH]    Local manifests git url and branch.
     -p, --patchset [GIT_URL:BRANCH]    Patchset git url and branch.
