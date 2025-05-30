@@ -112,3 +112,9 @@ jobs:
               --patchset $PATCHSET \
               --reset
           "
+
+      - name: Cancel queue if cancelled
+        if: cancelled()
+        run: |
+          cd $PROJECT_DIR
+          crave stop --all
