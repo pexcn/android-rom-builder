@@ -14,6 +14,7 @@ OPTIONS:
     -d, --device <CODE_NAME>           Device code name.
     -v, --variant <BUILD_VARIANT>      Build variant.
     -m, --manifest [GIT_URL:BRANCH]    Local manifests git url and branch.
+    -p, --patchset [GIT_URL:BRANCH]    Patchset git url and branch.
     -r, --reset                        Whether to reset the sources before starting build.
     -h, --help                         Show this help message then exit.
 EOF
@@ -32,6 +33,10 @@ parse_args() {
         ;;
       -m | --manifest)
         MANIFEST="$2"
+        shift 2
+        ;;
+      -p | --patchset)
+        PATCHSET="$2"
         shift 2
         ;;
       -r | --reset)
@@ -62,6 +67,10 @@ parse_args() {
     echo "\`-m | --manifest\` parameter is invalid."
     exit 1
   fi
+  if [ "$(awk -F: '{print NF-1}' <<<"$PATCHSET")" -lt 2 ]; then
+    echo "\`-p | --patchset\` parameter is invalid."
+    exit 1
+  fi
 }
 
 build_rom() {
@@ -84,6 +93,15 @@ build_rom() {
     /opt/crave/resync.sh
   else
     repo sync --current-branch --force-sync --optimized-fetch --no-tags --no-clone-bundle --prune -j"$(nproc --all)"
+  fi
+
+  # apply patchset
+  if [ -n "$PATCHSET" ]; then
+    rm -rf .patchset
+    local patchset_url="${PATCHSET%:*}"
+    local patchset_branch="${PATCHSET##*:}"
+    git clone "$patchset_url" -b "$patchset_branch" .patchset || exit 1
+    ./.patchset/patch.sh .
   fi
 
   if [ "$DCDEVSPACE" = 1 ]; then
