@@ -31,8 +31,7 @@ parse_args() {
         shift 2
         ;;
       -m | --manifest)
-        MANIFEST_URL="${2%:*}"
-        MANIFEST_BRANCH="${2##*:}"
+        MANIFEST="$2"
         shift 2
         ;;
       -r | --reset)
@@ -55,8 +54,12 @@ parse_args() {
     echo "\`-d | --device\` parameter must be specified."
     exit 1
   fi
-  if [ -z "$variant" ]; then
+  if [ -z "$VARIANT" ]; then
     echo "\`-v | --variant\` parameter must be specified."
+    exit 1
+  fi
+  if [ "$(awk -F: '{print NF-1}' <<<"$MANIFEST")" -lt 2 ]; then
+    echo "\`-m | --manifest\` parameter is invalid."
     exit 1
   fi
 }
@@ -69,9 +72,11 @@ build_rom() {
   fi
 
   # clone local_manifests
-  if [ -n "$MANIFEST_URL" ]; then
+  if [ -n "$MANIFEST" ]; then
     rm -rf .repo/local_manifests
-    git clone "$MANIFEST_URL" -b "$MANIFEST_BRANCH" .repo/local_manifests
+    local manifest_url="${MANIFEST%:*}"
+    local manifest_branch="${MANIFEST##*:}"
+    git clone "$manifest_url" -b "$manifest_branch" .repo/local_manifests || exit 1
   fi
 
   # repo sync
