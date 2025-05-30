@@ -113,8 +113,9 @@ jobs:
               --reset
           "
 
-      - name: Cancel queue if cancelled
-        if: cancelled()
+      - name: Clean up devspace
+        if: always()
         run: |
-          cd $PROJECT_DIR
-          crave stop --all
+          cd $PROJECT_DIR; crave stop --all; cd -
+          crave clone destroy -y $PROJECT_DIR
+          crave devspace --stop
