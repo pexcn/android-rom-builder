@@ -27,6 +27,9 @@ on:
       local_manifests:
         description: Local manifests
         required: false
+      patchset:
+        description: Patchset
+        required: false
       clean_build:
         description: Clean build
         type: boolean
@@ -76,6 +79,7 @@ jobs:
           echo "DEVICE_CODE=${{ inputs.device_code }}" >> $GITHUB_ENV
           echo "BUILD_VARIANT=${{ inputs.build_variant }}" >> $GITHUB_ENV
           echo "LOCAL_MANIFESTS=${{ inputs.local_manifests }}" >> $GITHUB_ENV
+          echo "PATCHSET=${{ inputs.patchset }}" >> $GITHUB_ENV
           echo "CLEAN_BUILD=$CLEAN_BUILD" >> $GITHUB_ENV
 
           # remove extra double quotes, god knows why there are two extra double quotes
@@ -105,5 +109,6 @@ jobs:
               --device $DEVICE_CODE \
               --variant $BUILD_VARIANT \
               --manifest $LOCAL_MANIFESTS \
+              --patchset $PATCHSET \
               --reset
           "
