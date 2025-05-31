@@ -77,7 +77,7 @@ build_rom() {
   # reset changes
   if [ "$RESET" = 1 ]; then
     repo forall -c git reset --hard HEAD >/dev/null
-    repo forall -c git clean -fdx >/dev/null
+    repo forall -c git clean -fd >/dev/null
   fi
 
   # clone local_manifests
