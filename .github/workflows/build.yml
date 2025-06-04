@@ -30,10 +30,6 @@ on:
       patchset:
         description: Patchset
         required: false
-      clean_build:
-        description: Clean build
-        type: boolean
-        default: false
 
 jobs:
   build:
@@ -67,12 +63,6 @@ jobs:
               ;;
           esac
 
-          if [ "${{ inputs.clean_build }}" = true ]; then
-            CLEAN_BUILD=1
-          else
-            CLEAN_BUILD=0
-          fi
-
           echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
           echo "PROJECT_DIR=/crave-devspaces/${{ inputs.project_name }}" >> $GITHUB_ENV
           echo "PROJECT_NAME=${{ inputs.project_name }}" >> $GITHUB_ENV
@@ -80,7 +70,6 @@ jobs:
           echo "BUILD_VARIANT=${{ inputs.build_variant }}" >> $GITHUB_ENV
           echo "LOCAL_MANIFESTS=${{ inputs.local_manifests }}" >> $GITHUB_ENV
           echo "PATCHSET=${{ inputs.patchset }}" >> $GITHUB_ENV
-          echo "CLEAN_BUILD=$CLEAN_BUILD" >> $GITHUB_ENV
 
           # remove extra double quotes, god knows why there are two extra double quotes
           DCMASTER=${DCMASTER//\"/}
@@ -102,9 +91,8 @@ jobs:
       - name: Start build queue
         timeout-minutes: 720
         run: |
-          [ "$CLEAN_BUILD" = 0 ] || CRAVE_RUN_ARGS="$CRAVE_RUN_ARGS --clean"
           cd $PROJECT_DIR
-          crave run --no-patch $CRAVE_RUN_ARGS -- "
+          crave run --no-patch -- "
             curl -sSL https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/master/build.sh | bash -s -- \
               --device $DEVICE_CODE \
               --variant $BUILD_VARIANT \
